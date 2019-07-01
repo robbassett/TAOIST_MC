@@ -2,6 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from astropy.cosmology import WMAP9 as cosmo
 from scipy import integrate as integ
+import cdf_sampler as cds
 
 
 def dX(z,Om0,Ode0):
@@ -105,7 +106,11 @@ def voigt_approx(lam,lami,b,gamma):
 
     return A1*(1.-(A2*Kx))
 
-        
+def doppler_dist(b):
+    bs = 23.
+    A1 = (4.*bs*bs*bs*bs)/(b*b*b*b*b)
+    A2 = np.exp((-1.)*A1*b/4.)
+    return A1*A2*1.e13
 
 def tau_HI_LAF(wav,z):
     me,ce,c = 9.1094e-31,1.6022e-19,2.99792e18
@@ -113,12 +118,19 @@ def tau_HI_LAF(wav,z):
 
     tau = np.zeros(len(wav))
     lam = wav/(1.+z)
+
+    bx = np.arange(1,1000,.1)
+    by = doppler_dist(bx)
+    bcds  =  cds.cdf_sampler(bx,by)
+    bcds.sample_n(1)
+    
+    b  = bcds.sample[0]*1.e13
+    print(b)
     for i in range(len(LAF_table[:,0])):
         sig_T = 6.625e-25       #cm^2
         c     = 2.998e10        #cm/s
         fi    = LAF_table[i,1]  
         li    = LAF_table[i,0]  #angstrom
-        b     = 25.e13          #angstrom/s
         gamma = LAF_table[i,2]
 
         A1 = c*np.sqrt((3.*np.pi*sig_T)/8.)
