@@ -248,9 +248,9 @@ def doppler_dist(b):
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # returns cross section spectrum for Lyman lines
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-def tau_HI_LAF(wav,z):
+def tau_HI_LAF(wav,z,LAF_table):
     me,ce,c = 9.1094e-31,1.6022e-19,2.99792e18
-    LAF_table = np.loadtxt('./Lyman_series.dat',float)
+    
 
     tau = np.zeros(len(wav))
     lam = wav/(1.+z)
@@ -296,6 +296,7 @@ def tau_HI_LAF(wav,z):
 def make_tau(zs,dz,fzs,NHIs,wav):
 
     tau = np.zeros(len(wav))
+    LAF_table = np.loadtxt('./Lyman_series.dat',float)
     for i in range(len(zs)):
         if fzs[i] != 0.:
             DX = dZ_2_dX(zs[i],zs[i]+dz,cosmo.Om0,cosmo.Ode0)
@@ -304,7 +305,7 @@ def make_tau(zs,dz,fzs,NHIs,wav):
             cdt = 10.**cdt
             cdt = np.sum(cdt)
             tau+=tau_HI_LyC(cdt,wav,zs[i])
-            tau+=cdt*tau_HI_LAF(wav,zs[i])
+            tau+=cdt*tau_HI_LAF(wav,zs[i],LAF_table)
             
     return tau
 
