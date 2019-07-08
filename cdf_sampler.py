@@ -6,25 +6,17 @@ class cdf_sampler(object):
     # __init__ computed the normalisation
     # factor then constructs the cumulative
     # distribution function (cdf). 
-    
     def __init__(self,x,y):
         self.x_input = x
         self.y_input = y
         self.sample  = 'None'
 
         pdf_fnorm = np.sum(y)
-        
-        self.cdf  = np.zeros(len(y))
-        val       = 0.0
-        for i in range(len(self.cdf)):
-            val+=y[i]
-            
-            self.cdf[i] = val/pdf_fnorm
+        self.cdf = np.cumsum(y/pdf_fnorm)
 
     # sample_n in produces a random sample
     # of n with a distribution matched to the
     # input array, y.
-    
     def sample_n(self,n):
 
         self.sample = np.zeros(n)
