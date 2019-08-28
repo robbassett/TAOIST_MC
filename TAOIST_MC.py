@@ -46,35 +46,12 @@ def dZ_2_dX(z,dz,Om0,Ode0):
 # et al. 2018 (Appendix B).
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # NHI  = central value of current NHI bin
-# dNHI = current NHI bin size
 # z    = current redshift
-# dX   = comoving path length computed using
-#        above functions
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-# returns Poissonian event rate for given bin. This
-# value is used in "N_single_z" with np.random.poisson
-# to give the random number of absorbers in a given
-# NHI bin and given redshift bin.
+# returns the number of absorption systems to sample
+# from the distribution function
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-def N_abs(NHI,dNHI,z,dX):
-    if NHI >= 12.0 and NHI < 15.2:
-        beta  = 1.635
-        A     = 10.**9.305
-        gamma = 2.5
-
-    if NHI >= 15.2:
-        beta  = 1.463
-        A     = 10.**7.542
-        gamma = 1.0
-
-        
-    c1 = (10.**NHI)**((-1.)*beta)
-    c2 = A*((1.+z)**gamma)
-    c3 = dNHI*dX
-    
-    return c1*c2*c3
-
-def N_abs_beta(NHIs,z):
+def N_abs(NHIs,z):
     y = (10.**9.305)*((1.+z)**2.5)*(10.**NHIs)**(-1.635)
     y2 = (10.**7.542)*(1.+z)*(10.**NHIs)**(-1.463)
 
@@ -95,8 +72,6 @@ def N_abs_beta(NHIs,z):
 # is determined by sampling the redshift distribution
 # of absorption systems (see "fz_HI"). 
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-# TO DO!! replace this with the inverse CDF sampler
-# - - - - - - - - - - - - - - - - - - - - - - - - -
 # NHIs = array of log10(NHIs) for bins
 # z    = current redshift
 # dX   = comoving path length of redshift bin
@@ -113,31 +88,11 @@ def N_abs_beta(NHIs,z):
 #        values
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 def N_single_z(NHIs,z,dX,n):
-    """
-    Nabs = np.zeros(len(NHIs)-1)
-    dns  = np.zeros(len(Nabs))
-    arr  = np.array([])
     
-    for i in range(len(Nabs)):
-        dns[i] = (10.**NHIs[i+1])-(10.**NHIs[i])
-        Nab = N_abs(NHIs[i],dns[i],z,dX)
-        Nabs[i] = np.random.poisson(Nab)
-        tm = np.zeros(int(Nabs[i]))+NHIs[i]
-        arr = np.concatenate([arr,tm])
-    
-    choi = 0.0
-    if len(arr) > 0:
-        if len(arr) > n:
-            ii = np.random.randint(0,len(arr),size=n)
-            choi=arr[ii]
-        else:
-            choi=np.array(arr)
-    """
-    ytm = N_abs_beta(NHIs,z)*dX
+    ytm = N_abs(NHIs,z)*dX
     NHI_sampler = cds.cdf_sampler(NHIs[:-1],ytm)
     NHI_sampler.sample_n(n)
 
-    #return Nabs,dns,choi
     return 0.,0.,NHI_sampler.sample
 
 # - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -276,7 +231,8 @@ def doppler_dist(b):
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 def tau_HI_LAF(wav,z,LAF_table):
     me,ce,c = 9.1094e-31,1.6022e-19,2.99792e18
-    
+    sig_T = 6.625e-25       #cm^2
+    c     = 2.998e10        #cm/s
 
     tau = np.zeros(len(wav))
     lam = wav/(1.+z)
@@ -288,8 +244,6 @@ def tau_HI_LAF(wav,z,LAF_table):
     
     b  = bcds.sample[0]*1.e13  #angstrom/s
     for i in range(len(LAF_table[:,0])):
-        sig_T = 6.625e-25       #cm^2
-        c     = 2.998e10        #cm/s
         fi    = LAF_table[i,1]  
         li    = LAF_table[i,0]  #angstrom
         gamma = LAF_table[i,2]
@@ -298,7 +252,7 @@ def tau_HI_LAF(wav,z,LAF_table):
         A2 = (fi*li)/(np.sqrt(np.pi)*b)
         A3 = voigt_approx(lam,li,b,gamma)
 
-        tm_tau = A1*A2*A3
+        tm_tau = 1.75*A1*A2*A3
         bad = np.where(np.isfinite(tm_tau) == False)
         tm_tau[bad[0]] = 0.
         tau+=tm_tau
