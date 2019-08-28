@@ -74,6 +74,19 @@ def N_abs(NHI,dNHI,z,dX):
     
     return c1*c2*c3
 
+def N_abs_beta(NHIs,z):
+    y = (10.**9.305)*((1.+z)**2.5)*(10.**NHIs)**(-1.635)
+    y2 = (10.**7.542)*(1.+z)*(10.**NHIs)**(-1.463)
+
+    t = np.where(NHIs >= 17.2)
+    y[t[0]]=y2[t[0]]
+    for i in range(len(NHIs)-1):
+        dns = (10.**NHIs[i+1])-(10.**NHIs[i])
+        y[i]*=dns
+
+    return y[:-1]
+    
+
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Compute the number of absorbers in bins of NHI at
 # in a given redshift bin based on Poisson sampling
@@ -100,6 +113,7 @@ def N_abs(NHI,dNHI,z,dX):
 #        values
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 def N_single_z(NHIs,z,dX,n):
+    """
     Nabs = np.zeros(len(NHIs)-1)
     dns  = np.zeros(len(Nabs))
     arr  = np.array([])
@@ -110,7 +124,7 @@ def N_single_z(NHIs,z,dX,n):
         Nabs[i] = np.random.poisson(Nab)
         tm = np.zeros(int(Nabs[i]))+NHIs[i]
         arr = np.concatenate([arr,tm])
-
+    
     choi = 0.0
     if len(arr) > 0:
         if len(arr) > n:
@@ -118,7 +132,13 @@ def N_single_z(NHIs,z,dX,n):
             choi=arr[ii]
         else:
             choi=np.array(arr)
-    return Nabs,dns,choi
+    """
+    ytm = N_abs_beta(NHIs,z)*dX
+    NHI_sampler = cds.cdf_sampler(NHIs[:-1],ytm)
+    NHI_sampler.sample_n(n)
+
+    #return Nabs,dns,choi
+    return 0.,0.,NHI_sampler.sample
 
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Redshift HI absorption system distribution function
@@ -208,7 +228,10 @@ def voigt_approx(lam,lami,b,gamma):
     c = 2.998e18 # angst/s
     ldl = (b/c)*lami
     a = ((lami*lami)*gamma)/(4.*np.pi*c*ldl)
-    x = (lam-lami)/ldl
+    t_vp = np.where(np.abs(lam-lami) <= (1.812*(b/1.e13)))
+    t_vp = t_vp[0]
+    
+    x = (lam[t_vp]-lami)/ldl
 
     A1 = np.exp((-1.)*x*x)
     A2= a*(2./np.sqrt(np.pi))
@@ -219,7 +242,10 @@ def voigt_approx(lam,lami,b,gamma):
 
     Kx = K1*(K2-K3)
 
-    return A1*(1.-(A2*Kx))
+    xo = np.zeros(len(lam))
+    xo[t_vp] = A1*(1.-(A2*Kx))
+
+    return xo
 
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Doppler parameter distribution function taken from
@@ -276,7 +302,9 @@ def tau_HI_LAF(wav,z,LAF_table):
         bad = np.where(np.isfinite(tm_tau) == False)
         tm_tau[bad[0]] = 0.
         tau+=tm_tau
-        
+
+    
+    
     return tau
 
 # - - - - - - - - - - - - - - - - - - - - - - - - -
