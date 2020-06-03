@@ -5,140 +5,84 @@ from scipy import integrate as integ
 import cdf_sampler as cds
 
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-# conversion from dz to dX, comoving coordinates
-# e.g. Steidel et al. 2018, Appendix B, eq 25.
+# Retrieves the number of absorption systems in
+# each bin of HI column density in a given redshift
+# slice. This is based on the HI column density
+# distributions in Steidel et al. 2018, Appendix B,
+# Figure B1. Values calculated are passed into the
+# Poisson sampler of the numpy.random package to give
+# the randomly sampled absorbers in the current
+# redshift bin. This function is called from within
+# the function get_fzs().
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-# Here we are assuming WMAP9 cosmology from
-# astropy. To change, update "from astropy.comology..."
-# above or manually enter omega matter and omega lambda
-# in function "make_tau" below.
+# NHIs = HI column density bins, log spacing
+# dz   = integral of (1+z)**gamma from the start
+#        to the end of the redshift bin. See Steidel
+#        et al. 2018, Appendix B for gamma definitions.
+# dN   = linear spacing of logarithmic NHI bins.
+# CGM  = flag to denote if CGM HI distribution to be
+#        used (where (z_em - z) <= 0.0023*(1.+z_em))
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-# z    = redshift
-# Om0  = omega matter
-# Ode0 = omega lambda
+# NOTE: values of dz, dN, and CGM are determined from
+#       within the function get_fzs()
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-def dX(z,Om0,Ode0):
-    num = ((1.+z)**2.)
-    den = np.sqrt(Ode0+(Om0*((1.+z)**3)))
-    return num/den
+def one_Nabs(NHIs,dz,dN,CGM=False):
 
+    # f(NHI,z) for log column densities below 15.2 for non-CGM and 13.0 for CGM
+    Ns = np.array([(10.**9.305)*((10.**(NHIs[i]))**((-1.)*1.635))*dz[1]*dN[i] for i in range(len(NHIs)-1)])
+    if CGM:
+        # f(NHI,z) for CGM systems, log column density greater than 13.0
+        t  = np.where(NHIs[:-1] >= 13.0)[0]
+        Ns[t] = [(10.**6.716)*((10.**(NHIs[i]))**((-1.)*1.381))*dz[0]*dN[i] for i in t]
+    else:
+        # f(NHI,z) for non-CGM, log column density greater than 15.2 
+        t  = np.where(NHIs[:-1] >= 15.2)[0]
+        Ns[t] = [(10.**7.542)*((10.**(NHIs[i]))**((-1.)*1.463))*dz[0]*dN[i] for i in t]
 
-# - - - - - - - - - - - - - - - - - - - - - - - - -
-# Computing the comoving pathlength from redshift
-# interval. Again assuming WMAP9 comsology, see above
-# on info for using alternative cosmology.
-# - - - - - - - - - - - - - - - - - - - - - - - - -
-# z    = redshift
-# dz   = redshift interval
-# Om0  = omega matter
-# Ode0 = omega lambda
-# - - - - - - - - - - - - - - - - - - - - - - - - -
-def dZ_2_dX(z,dz,Om0,Ode0):
-    tDx,err = integ.quad(dX,z,z+dz,args=(Om0,Ode0))
-    return tDx
-
-# - - - - - - - - - - - - - - - - - - - - - - - - -
-# N_abs computes the Poissonian event rate (lambda)
-# for a given redshift and column density along with
-# the associated redshift interval and column density
-# bin sizes. Here we adopt the functional form of a
-# broken power law following Table 11 of Steidel
-# et al. 2018 (Appendix B).
-# - - - - - - - - - - - - - - - - - - - - - - - - -
-# NHI  = central value of current NHI bin
-# z    = current redshift
-# - - - - - - - - - - - - - - - - - - - - - - - - -
-# returns the number of absorption systems to sample
-# from the distribution function
-# - - - - - - - - - - - - - - - - - - - - - - - - -
-def N_abs(NHIs,z):
-    y = (10.**9.305)*((1.+z)**2.5)*(10.**NHIs)**(-1.635)
-    y2 = (10.**7.542)*(1.+z)*(10.**NHIs)**(-1.463)
-
-    t = np.where(NHIs >= 17.2)
-    y[t[0]]=y2[t[0]]
-    for i in range(len(NHIs)-1):
-        dns = (10.**NHIs[i+1])-(10.**NHIs[i])
-        y[i]*=dns
-
-    return y[:-1]
-    
+    # RANDOMLY SAMPLED (POISSON) VALUES ARE RETURNED
+    return np.random.poisson(lam=Ns,size=(1,len(Ns)))
 
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-# Compute the number of absorbers in bins of NHI at
-# in a given redshift bin based on Poisson sampling
-# of the HI column density distribution function,
-# then randomly chooses n absorbers where n is
-# is determined by sampling the redshift distribution
-# of absorption systems (see "fz_HI"). 
-# - - - - - - - - - - - - - - - - - - - - - - - - -
-# NHIs = array of log10(NHIs) for bins
-# z    = current redshift
-# dX   = comoving path length of redshift bin
-# n    = number of absorbers in current reshift bin
-#        determined by poisson sampling of fz_HI
-# - - - - - - - - - - - - - - - - - - - - - - - - -
-# returns:
-# Nabs = full random sample of absorbers, array of
-#        length len(NHIs)-1 where each value indicates
-#        number of absorbers in a given NHI bin
-# dns  = array of NHI bin sizes in linear space (NHI
-#        bins are input in log space**)
-# choi = array of n randomly selected absorber NHI
-#        values
-# - - - - - - - - - - - - - - - - - - - - - - - - -
-def N_single_z(NHIs,z,dX,n):
-    
-    ytm = N_abs(NHIs,z)*dX
-    NHI_sampler = cds.cdf_sampler(NHIs[:-1],ytm)
-    NHI_sampler.sample_n(n)
-
-    return 0.,0.,NHI_sampler.sample
-
-# - - - - - - - - - - - - - - - - - - - - - - - - -
-# Redshift HI absorption system distribution function
-# taken from Inoue & Iwata 2008, eq 5. Returns the
-# Poissonian lambda value to predict the number of
-# absorbers at all NHI in a given redshift bin.
+# Computes integral of (1+z) and (1+z)**2.5. Gives
+# multiplicative factors to convert f(NHI,z) to a
+# poisson lambda value for random sampling.
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # z  = current redshift
-# dz = redshift bin width
+# dz = size of redshift slice
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-# returns Poissonian lambda to be used in "make_zdist"
-# below.
-# - - - - - - - - - - - - - - - - - - - - - - - - -
-def fz_HI(z,dz):
-    A = 400.
-    z1,z2 = 1.2,4.0
-    g1,g2,g3 = .2,2.5,4.0
-
-    if z <= z1:
-        c = ((1.+z)/(1.+z1))**g1
-    if z > z1 and z <= z2:
-        c = ((1.+z)/(1.+z1))**g2
-    if z > z2:
-        c1 = ((1.+z2)/(1.+z1))**g2
-        c2 = ((1.+z)/(1.+z2))**g3
-        c  = c1*c2
-
-    return A*c*dz
+def do_Zint(z,dz):
+    z1,z2 = z,z+dz
+    o1 = (((z2*z2)/2.)+z2)-(((z1*z1)/2.)+z1)
+    o2 = (0.285714*(z2**3.5))-(0.285714*(z1**3.5))
+    return [o1,o2]
 
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-# Gives the number of absorbers in each redshift
-# bin based on Poisson sampling of fz_HI
+# Get the randomly sampled (poisson) absorption systems
+# in each NHI bin in each redshift bin. Returns a 2D
+# numpy array with dimensions (n(redshifts),n(NHIs))
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-# TO DO: replace with inverse cdf sampler
+# zs   = array of redshifts corresponding to bins
+# zem  = redshift of current source (redshift to which
+#        the current IGM transmission curve is calculated).
+# dz   = size of redshift bins in terms of z
+# NHIs = array of log(HI column density)
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-# zs = array of redshift bin values
-# dz = redshift bin size
-# - - - - - - - - - - - - - - - - - - - - - - - - -
-# returns array of number of absorbers in each
-# redshift bin
-# - - - - - - - - - - - - - - - - - - - - - - - - -
-def make_zdist(zs,dz):
-    fzs = np.zeros(len(zs))
-    for i in range(len(zs)):
-        fzs[i] = np.random.poisson(fz_HI(zs[i],dz))
+def get_fzs(zs,zem,dz,NHIs,do_CGM=True):
+    # Create empty output array
+    fzs = np.empty((len(zs),len(NHIs)-1))
+    # Calculate linear size of logarithmically spaced NHI bins
+    dHI = np.array([10.**(NHIs[i+1])-10.**(NHIs[i]) for i in range(len(NHIs)-1)])
+    # Loop over redshifts
+    for i,z in enumerate(zs):
+        # Calculate integral of (1+z)^gamma across current redshift bin
+        DX = do_Zint(z,dz)
+
+        # Switch to turn on CGM distribution
+        if zem-z <= 0.0023*(1.+zem) and do_CGM:
+            fzs[i] = one_Nabs(NHIs,DX,dHI,CGM=True)
+        else:
+            fzs[i] = one_Nabs(NHIs,DX,dHI)
+        
     return fzs
 
 # - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -252,7 +196,7 @@ def tau_HI_LAF(wav,z,LAF_table):
         A2 = (fi*li)/(np.sqrt(np.pi)*b)
         A3 = voigt_approx(lam,li,b,gamma)
 
-        tm_tau = 1.75*A1*A2*A3
+        tm_tau = 1.5*A1*A2*A3
         bad = np.where(np.isfinite(tm_tau) == False)
         tm_tau[bad[0]] = 0.
         tau+=tm_tau
@@ -275,28 +219,18 @@ def tau_HI_LAF(wav,z,LAF_table):
 # returns the optical depth spectrum including both
 # LyC and Lyman series line absorption
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-def make_tau(zs,dz,fzs,NHIs,wav):
+def make_tau(zs,fzs,lNHIs,wav):
 
+    HIm = 10.**(lNHIs)
+    zem = np.max(zs)
     tau = np.zeros(len(wav))
     LAF_table = np.loadtxt('./Lyman_series.dat',float)
     for i in range(len(zs)):
-        if fzs[i] != 0.:
-            DX = dZ_2_dX(zs[i],zs[i]+dz,cosmo.Om0,cosmo.Ode0)
-            Nabs,dn,cdt = N_single_z(NHIs,zs[i],DX,int(fzs[i]))
+        if np.max(fzs[i]) != 0.:
+            t = np.where(fzs[i] > 0.)[0]
 
-            cdt = 10.**cdt
-            cdt = np.sum(cdt)
+            cdt = np.sum(HIm[t])
             tau+=tau_HI_LyC(cdt,wav,zs[i])
             tau+=cdt*tau_HI_LAF(wav,zs[i],LAF_table)
             
     return tau
-
-
-
-
-
-
-
-
-
-
