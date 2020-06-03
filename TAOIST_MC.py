@@ -3,6 +3,7 @@ from matplotlib import pyplot as plt
 from astropy.cosmology import WMAP9 as cosmo
 from scipy import integrate as integ
 import cdf_sampler as cds
+import sys
 
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Retrieves the number of absorption systems in
@@ -173,7 +174,7 @@ def doppler_dist(b):
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # returns cross section spectrum for Lyman lines
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-def tau_HI_LAF(wav,z,LAF_table):
+def tau_HI_LAF(wav,z):
     me,ce,c = 9.1094e-31,1.6022e-19,2.99792e18
     sig_T = 6.625e-25       #cm^2
     c     = 2.998e10        #cm/s
@@ -224,13 +225,49 @@ def make_tau(zs,fzs,lNHIs,wav):
     HIm = 10.**(lNHIs)
     zem = np.max(zs)
     tau = np.zeros(len(wav))
-    LAF_table = np.loadtxt('./Lyman_series.dat',float)
     for i in range(len(zs)):
         if np.max(fzs[i]) != 0.:
             t = np.where(fzs[i] > 0.)[0]
 
             cdt = np.sum(HIm[t])
             tau+=tau_HI_LyC(cdt,wav,zs[i])
-            tau+=cdt*tau_HI_LAF(wav,zs[i],LAF_table)
+            tau+=cdt*tau_HI_LAF(wav,zs[i])
             
     return tau
+
+
+# - - - - - - - - - - - - - - - - - - - - - - - - -
+# When imported as a module, load the Lyman series
+# table as a global variable. This table is used to
+# compute Lyman series line absorption and is called
+# from the function "tau_HI_LAF", which is itself
+# called from within "make_tau". The file is located
+# in the TAOIST-MC folder, which should be added to
+# your python path. 
+# - - - - - - - - - - - - - - - - - - - - - - - - -
+if __name__ != '__main__':
+
+    flag = 0
+    for p in sys.path:
+        try:
+            LAF_table = np.loadtxt(f'{p}/Lyman_series.dat',float)
+            print('\n')
+            print(' - - - - - - - - - - - - - - - - - - - - - - - - - - - ')
+            print('Lyman series data loaded from:')
+            print(f'{p}/Lyman_series.dat')
+            print(' - - - - - - - - - - - - - - - - - - - - - - - - - - - ')
+            print('\n')
+            print('....mocking the IGM....')
+            print('\n')
+            flag = 1
+        except:
+            pass
+
+    if flag == 0:
+        print('\n')
+        print(' - - - - - - - - - - - - - - - - - - - - - - - - - - - ')
+        print('Lyman series data not found.  please add the TAOIST_MC')
+        print('folder to your python path and try again.')
+        print(' - - - - - - - - - - - - - - - - - - - - - - - - - - - ')
+        print('\n')
+        sys.exit()
