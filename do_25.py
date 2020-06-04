@@ -2,6 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from astropy.cosmology import WMAP9 as cosmo
 from scipy import integrate as integ
+import warnings
 
 import TAOIST_MC as tao
 
@@ -11,6 +12,9 @@ import TAOIST_MC as tao
 # PRODUCED BY CHANGING "do_CGM" to False IN THE LINE:
 # Nab = tao.get_fzs(zs,zem,dz,NHIs,do_CGM=True)
 if __name__ == '__main__':
+    # IGNORE OVERFLOW WARNINGS IN TAOIST-MC
+    warnings.filterwarnings("ignore")
+    
     # Define redshift
     zem =3.05
     # Define redshift bin size
@@ -22,7 +26,7 @@ if __name__ == '__main__':
     # Create wavelength array
     wav = np.arange(600.*(1.+zem),1500.*(1.+zem),5.)
     # Define number of samples
-    nex = 5
+    nex = 25
 
     F  = plt.figure(figsize=(5,5),dpi=150)
     ax = F.add_subplot(111)
