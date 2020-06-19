@@ -33,17 +33,16 @@ if __name__ == '__main__':
     taua= np.zeros((nex,len(wav)))
     for i in range(nex):
 
-        Nab = tao.get_fzs(zs,zem,dz,NHIs,do_CGM=True)
+        Nab = tao.get_fzs(zs,zem,dz,NHIs,wav,do_CGM=True)
         tm_tau = tao.make_tau(zs,Nab,NHIs[:-1],wav)
         taua[i,:] = tm_tau
 
     taum = np.mean(np.exp((-1.)*taua),axis=0)
 
     ax.plot(wav/(1.+zem),taum,'g-',lw=1)
-    ax.axvline(x=911.75,c='r',ls='--',lw=.3)
-    ax.axvline(x=1216.,c='r',ls='--',lw=.3)
+    [ax.axvline(x=_x,c='r',ls='--',lw=.3) for _x in [911.75,1216.]]
     ax.set_ylim(-.1,1.1)
     ax.set_xlim(799,1249)
-    ax.set_xlabel(r'$\lambda_{obs}$',fontsize=18)
+    ax.set_xlabel(r'$\lambda_{rest}$',fontsize=18)
     ax.set_ylabel(r'$T_{IGM}$',fontsize=18)
     plt.show()

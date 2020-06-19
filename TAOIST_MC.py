@@ -27,22 +27,23 @@ import sys
 # NOTE: values of dz, dN, and CGM are determined from
 #       within the function get_fzs()
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-def one_Nabs(NHIs,dz,dN,CGM=False):
+def one_Nabs(NHIs,dz,dN,DH_IGM,DH_CGM,CGM=False):
 
+    lH = 10.**(NHIs)
     # f(NHI,z) for log column densities below 15.2 for non-CGM and 13.0 for CGM
-    Ns = np.array([(10.**9.305)*((10.**(NHIs[i]))**((-1.)*1.635))*dz[1]*dN[i] for i in range(len(NHIs)-1)])
+    Ns = np.array((10.**9.305)*DH_IGM*dz[1])
     if CGM:
         # f(NHI,z) for CGM systems, log column density greater than 13.0
         t  = np.where(NHIs[:-1] >= 13.0)[0]
-        Ns[t] = [(10.**6.716)*((10.**(NHIs[i]))**((-1.)*1.381))*dz[0]*dN[i] for i in t]
-    else:
+        Ns[t] = (10.**6.716)*DH_CGM[t]*dz[0]
+    if not CGM:
         # f(NHI,z) for non-CGM, log column density greater than 15.2 
         t  = np.where(NHIs[:-1] >= 15.2)[0]
-        Ns[t] = [(10.**7.542)*((10.**(NHIs[i]))**((-1.)*1.463))*dz[0]*dN[i] for i in t]
+        Ns[t] = (10.**7.542)*DH_IGM[t]*dz[0]
 
     # RANDOMLY SAMPLED (POISSON) VALUES ARE RETURNED
-    return np.random.poisson(lam=Ns,size=(1,len(Ns)))
-
+    return np.random.poisson(lam=Ns*0.82,size=(1,len(Ns)))
+    
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Computes integral of (1+z) and (1+z)**2.5. Gives
 # multiplicative factors to convert f(NHI,z) to a
@@ -57,6 +58,26 @@ def do_Zint(z,dz):
     o2 = (0.285714*(z2**3.5))-(0.285714*(z1**3.5))
     return [o1,o2]
 
+def do_Hint(NHI):
+    bl,bh,bc = 1.635,1.463,1.381
+    
+    outIGM = np.zeros(len(NHI)-1)
+    outCGM = np.zeros(len(NHI)-1)
+    for i in range(len(outIGM)-1):
+        H1,H2 = 10.**(NHI[i]),10.**(NHI[i+1])
+        if NHI[i] < 15.2:
+            outIGM[i] = ((H2**(1.-bl))-(H1**(1.-bl)))/(1.-bl)
+        else:
+            outIGM[i] = ((H2**(1.-bh))-(H1**(1.-bh)))/(1.-bh)
+            
+        if NHI[i] < 13.0:
+            outCGM[i] = ((H2**(1.-bl))-(H1**(1.-bl)))/(1.-bl)
+        else:
+            outCGM[i] = ((H2**(1.-bc))-(H1**(1.-bc)))/(1.-bc)
+
+    return outIGM,outCGM
+
+            
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Get the randomly sampled (poisson) absorption systems
 # in each NHI bin in each redshift bin. Returns a 2D
@@ -68,22 +89,25 @@ def do_Zint(z,dz):
 # dz   = size of redshift bins in terms of z
 # NHIs = array of log(HI column density)
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-def get_fzs(zs,zem,dz,NHIs,do_CGM=True):
+def get_fzs(zs,zem,dz,NHIs,wav,do_CGM=True):
     # Create empty output array
-    fzs = np.empty((len(zs),len(NHIs)-1))
+    fzs = np.zeros((len(zs),len(NHIs)-1))
     # Calculate linear size of logarithmically spaced NHI bins
     dHI = np.array([10.**(NHIs[i+1])-10.**(NHIs[i]) for i in range(len(NHIs)-1)])
+    DH1,DH2 = do_Hint(NHIs)
     # Loop over redshifts
     for i,z in enumerate(zs):
-        # Calculate integral of (1+z)^gamma across current redshift bin
-        DX = do_Zint(z,dz)
+        if (1.+z)*1216. >= wav[0]:
+            # Calculate integral of (1+z)^gamma across current redshift bin
+            DX = do_Zint(z,dz)
 
-        # Switch to turn on CGM distribution
-        if zem-z <= 0.0023*(1.+zem) and do_CGM:
-            fzs[i] = one_Nabs(NHIs,DX,dHI,CGM=True)
-        else:
-            fzs[i] = one_Nabs(NHIs,DX,dHI)
         
+            # Switch to turn on CGM distribution
+            if zem-z <= 0.0023*(1.+zem) and do_CGM:
+                fzs[i] = one_Nabs(NHIs,DX,dHI,DH1,DH2,CGM=True)
+            else:
+                fzs[i] = one_Nabs(NHIs,DX,dHI,DH1,DH2,CGM=False)
+            
     return fzs
 
 # - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -160,7 +184,7 @@ def doppler_dist(b):
     bs = 23.
     A1 = (4.*bs*bs*bs*bs)/(b*b*b*b*b)
     A2 = np.exp((-1.)*A1*b/4.)
-    return A1*A2*1.e13
+    return A1*A2
 
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Computes the Lyman line forest cross-sections as
@@ -197,13 +221,14 @@ def tau_HI_LAF(wav,z):
         A2 = (fi*li)/(np.sqrt(np.pi)*b)
         A3 = voigt_approx(lam,li,b,gamma)
 
-        tm_tau = 1.5*A1*A2*A3
+        tm_tau = 4.0*A1*A2*A3
         bad = np.where(np.isfinite(tm_tau) == False)
         tm_tau[bad[0]] = 0.
         tau+=tm_tau
 
     
-    
+    tau[np.where(lam <= 911.8)[0]] = 0.
+        
     return tau
 
 # - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -229,10 +254,11 @@ def make_tau(zs,fzs,lNHIs,wav):
         if np.max(fzs[i]) != 0.:
             t = np.where(fzs[i] > 0.)[0]
 
-            cdt = np.sum(HIm[t])
-            tau+=tau_HI_LyC(cdt,wav,zs[i])
-            tau+=cdt*tau_HI_LAF(wav,zs[i])
-            
+            for j in t:
+                cdt = HIm[j]
+                tau+=tau_HI_LyC(cdt,wav,zs[i])
+                tau+=cdt*tau_HI_LAF(wav,zs[i])
+
     return tau
 
 
