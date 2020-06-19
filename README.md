@@ -1,4 +1,4 @@
-# TAOIST_MC
+# TAOIST-MC
 TrAnsmission Of IoniSing lightT - Monte Carlo: Simulated IGM UV Transmission
 
 This code uses hydrogen absorption system statistics from the literature (redshift and column density distribution functions)
@@ -17,5 +17,21 @@ for possible biases for detections of ionizing radiation towards high transmissi
 Development of TAOIST-MC is ongoing with plans to make the code more user friendly with a number of example script to be
 provided. In the future, there are also plans to include Helium ionization, a process that may play an important role at 
 higher photon energies.
+
+# INSTALLATION
+
+To install TAOIST-MC navigate to the parent directory where you would like TAOIST-MC to live and clone the repository there:
+
+bash$git clone https://github.com/robbassett/TAOIST_MC
+
+Now TAOIST\_MC is setup to run from within the TAOIST\_MC folder. If you want to import TAOIST_MC from another location, simply add the TAOIST\_MC folder to your path. For bash shell this can be done by adding the following line to your .bashrc file:
+
+export PATH=/path-to-TMC/TAOIST_MC/:$PATH
+
+where "/path-to-TMC/" is the full path to the folder containing the TAOIST\_MC folder on YOUR system. If not using bash, Google how to do this for your shell.
+
+
+
+
 
 Comments, questions, concerns? Email me at: rbassett.astro@gmail.com
