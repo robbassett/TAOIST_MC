@@ -18,7 +18,7 @@ Development of TAOIST-MC is ongoing with plans to make the code more user friend
 provided. In the future, there are also plans to include Helium ionization, a process that may play an important role at 
 higher photon energies.
 
-# INSTALLATION
+# Installation (requires python 3+)
 
 To install TAOIST-MC navigate to the parent directory where you would like TAOIST-MC to live and clone the repository there:
 
