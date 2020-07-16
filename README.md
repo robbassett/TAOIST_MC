@@ -1,6 +1,9 @@
 # TAOIST-MC
 TrAnsmission Of IoniSing lightT - Monte Carlo: Simulated IGM UV Transmission
 
+![Logo by James Josephides Swinburne Astronomy Productions](/TMClogo.png)
+*Logo by James Josephides, Swinburne Astronomy Productions*
+
 This code uses hydrogen absorption system statistics from the literature (redshift and column density distribution functions)
 to simulate the transmission of ionizing radiation through Hydrogen in the IGM for sources at a specified redshift. 
 The primary outputs of TAOIST-MC are ensembles of IGM transmission functions at UV wavelengths, i.e. T(lambda).
