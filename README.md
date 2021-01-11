@@ -15,7 +15,7 @@ sightlines from TAOIST-MC at z > 3.4 coupled to a BPASS model, one can estimate 
 and compare with known sources from your favourite deep survey. In this way, for individual
 detection of ionizing flux at high redshift, TAOIST-MC can be used to predict the probability distribution of ionising
 photon escape in a more meaningful way than simply assuming a mean IGM transmission function for all galaxies, thus accounting
-for possible biases for detections of ionizing radiation towards high transmission sightlines.
+for possible biases for detections of ionizing radiation towards high transmission sightlines. Below is Figure one from Bassett et al. 2021 illustrating the basic outputs of TOAIST-MC.
 
 ![Figure 1 of Bassett et al. 2021](Bassett2021_F1.png)
 
