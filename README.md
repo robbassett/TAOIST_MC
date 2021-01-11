@@ -17,6 +17,10 @@ detection of ionizing flux at high redshift, TAOIST-MC can be used to predict th
 photon escape in a more meaningful way than simply assuming a mean IGM transmission function for all galaxies, thus accounting
 for possible biases for detections of ionizing radiation towards high transmission sightlines.
 
+![Figure 1 of Bassett et al. 2021](Bassett2021_F1.png)
+
+[More detailed description of TOAIST-MC can be found in Section 2 of Bassett et al. 2021 (soon to be published in Monthly Notices of the Royal Astronomical Society)](https://arxiv.org/abs/2101.00727)
+
 Development of TAOIST-MC is ongoing with plans to make the code more user friendly with a number of example script to be
 provided. In the future, there are also plans to include Helium ionization, a process that may play an important role at 
 higher photon energies.
