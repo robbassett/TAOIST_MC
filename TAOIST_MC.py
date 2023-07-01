@@ -55,7 +55,7 @@ def one_Nabs(NHIs,dz,dN,DH_IGM,DH_CGM,CGM=False):
 def do_Zint(z,dz):
     z1,z2 = z,z+dz
     o1 = (((z2*z2)/2.)+z2)-(((z1*z1)/2.)+z1)
-    o2 = (0.285714*(z2**3.5))-(0.285714*(z1**3.5))
+    o2 = (0.285714*((1+z2)**3.5))-(0.285714*((1+z1)**3.5))
     return [o1,o2]
 
 def do_Hint(NHI):
