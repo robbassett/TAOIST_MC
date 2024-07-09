@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.interpolate as interp
 
+# new code
 class cdf_sampler(object):
 
     # __init__ computed the normalisation
